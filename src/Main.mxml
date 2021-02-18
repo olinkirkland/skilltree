@@ -1,0 +1,172 @@
+<?xml version="1.0"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+                       xmlns:s="library://ns.adobe.com/flex/spark"
+                       creationComplete="onCreationComplete(event)"
+                       showStatusBar="false"
+                       width="340"
+                       height="720">
+    <fx:Script><![CDATA[
+        import mx.core.UIComponent;
+        import mx.events.FlexEvent;
+        import mx.utils.UIDUtil;
+
+        private var layer:UIComponent = new UIComponent();
+        private var skills:Array = [];
+
+        private function onCreationComplete(event:FlexEvent):void
+        {
+            mainVGroup.addElement(layer);
+
+            generateAndDraw();
+        }
+
+        private function generateAndDraw():void
+        {
+            generate();
+            draw();
+        }
+
+        private function generate():void
+        {
+            skills = [];
+
+            for (var i:int = 0; i < 30; i++)
+            {
+                var skill:Skill = new Skill();
+                skill.id = UIDUtil.createUID();
+                skill.point = new Point(int(Math.random() * 4), int(Math.random() * 12));
+
+                if (!getSkillByPoint(skill.point))
+                    skills.push(skill);
+            }
+
+            // Connect skills
+            for each (skill in skills)
+                skill.requiredSkills = getRequiredSkills(skill);
+
+            labelSkillCount.text = skills.length + " Skills";
+        }
+
+        private function getRequiredSkills(skill:Skill):Array
+        {
+            var arr:Array = [];
+
+            // Add skill in the same column above
+            var p:Point = skill.point.clone();
+            while (arr.length == 0 && p.y >= 0)
+            {
+                p.y--;
+                var k:Skill = getSkillByPoint(p);
+                if (k) arr.push(k);
+            }
+
+            // Add skills directly above/sides
+            p = skill.point.clone();
+            p.y--;
+            p.x--;
+            var k:Skill = getSkillByPoint(p);
+            if (k) arr.push(k);
+            p.x += 2;
+            k = getSkillByPoint(p);
+            if (k) arr.push(k);
+
+            var r:Array = [];
+            var chances:Number = arr.length;
+            for (var i:int = 0; i < chances; i++)
+                if (arr.length > 0 && Math.random() < (.7 - i * .2))
+                    r.push(arr.shift().id);
+
+            return r;
+        }
+
+        private function getSkillByPoint(p:Point):Skill
+        {
+            for each (var k:Skill in skills)
+                if (p.equals(k.point))
+                    return k;
+
+            return null;
+        }
+
+        private function getSkillById(id:String):Skill
+        {
+            for each (var k:Skill in skills)
+                if (id == k.id)
+                    return k;
+
+            return null;
+        }
+
+        private function draw():void
+        {
+            layer.graphics.clear();
+            while (layer.numChildren > 0)
+                layer.removeChildAt(0);
+
+            var cellWidth:Number = 60;
+            var cellHeight:Number = 30;
+            var cellGap:Number = 20;
+
+            for each (var skill:Skill in skills)
+            {
+                var spr:Sprite = new Sprite();
+                spr.graphics.lineStyle(1, 0x000000);
+                spr.graphics.drawRect(0, 0, 60, 30);
+
+                spr.x = skill.point.x * (cellWidth + cellGap);
+                spr.y = skill.point.y * (cellHeight + cellGap);
+
+                layer.addChild(spr);
+
+                layer.graphics.lineStyle(1, 0xff0000);
+                for each (var id:String in skill.requiredSkills)
+                {
+                    var k:Skill = getSkillById(id);
+                    layer.graphics.moveTo(spr.x + cellWidth / 2, spr.y);
+
+                    var targetX:Number = k.point.x * (cellWidth + cellGap) + cellWidth / 2;
+                    var targetY:Number = k.point.y * (cellHeight + cellGap) + cellHeight;
+
+                    layer.graphics.lineTo(targetX, targetY);
+                }
+
+                if (layer.width < spr.x + spr.width)
+                    layer.width = spr.x + spr.width;
+                if (layer.height < spr.y + spr.height)
+                    layer.height = spr.y + spr.height;
+            }
+        }
+
+        private function onButtonGenerateClick(event:MouseEvent):void
+        {
+            generateAndDraw();
+        }
+
+        private function onButtonCopyJSON(event:MouseEvent):void
+        {
+            var str:String = JSON.stringify(skills, null, " ");
+            Clipboard.generalClipboard.clear();
+            Clipboard.generalClipboard.setData(ClipboardFormats.TEXT_FORMAT, str, false);
+        }
+        ]]></fx:Script>
+
+    <s:VGroup id="mainVGroup"
+              width="100%"
+              height="100%"
+              horizontalAlign="center">
+        <s:VGroup width="100%"
+                  horizontalAlign="center"
+                  padding="10">
+            <s:HGroup width="100%"
+                      horizontalAlign="center">
+                <s:Button label="Generate Skill Tree"
+                          click="onButtonGenerateClick(event)"/>
+                <s:Button label="Copy JSON"
+                          click="onButtonCopyJSON(event)"/>
+            </s:HGroup>
+            <s:Label id="labelSkillCount"/>
+        </s:VGroup>
+
+    </s:VGroup>
+
+</s:WindowedApplication>
