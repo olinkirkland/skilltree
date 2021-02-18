@@ -6,17 +6,13 @@
                        width="340"
                        height="720">
     <fx:Script><![CDATA[
-        import mx.core.UIComponent;
         import mx.events.FlexEvent;
         import mx.utils.UIDUtil;
 
-        private var layer:UIComponent = new UIComponent();
         private var skills:Array = [];
 
         private function onCreationComplete(event:FlexEvent):void
         {
-            mainVGroup.addElement(layer);
-
             generateAndDraw();
         }
 
@@ -99,41 +95,30 @@
 
         private function draw():void
         {
-            layer.graphics.clear();
-            while (layer.numChildren > 0)
-                layer.removeChildAt(0);
-
             var cellWidth:Number = 60;
             var cellHeight:Number = 30;
             var cellGap:Number = 20;
 
             for each (var skill:Skill in skills)
             {
-                var spr:Sprite = new Sprite();
-                spr.graphics.lineStyle(1, 0x000000);
-                spr.graphics.drawRect(0, 0, 60, 30);
+                var tile:SkillTile = new SkillTile();
+                tile.skill = skill;
 
-                spr.x = skill.point.x * (cellWidth + cellGap);
-                spr.y = skill.point.y * (cellHeight + cellGap);
+                tile.x = skill.point.x * (cellWidth + cellGap);
+                tile.y = skill.point.y * (cellHeight + cellGap);
 
-                layer.addChild(spr);
 
-                layer.graphics.lineStyle(1, 0xff0000);
+                tree.graphics.lineStyle(1, 0xff0000);
                 for each (var id:String in skill.requiredSkills)
                 {
                     var k:Skill = getSkillById(id);
-                    layer.graphics.moveTo(spr.x + cellWidth / 2, spr.y);
+                    tree.graphics.moveTo(tile.x + cellWidth / 2, tile.y);
 
                     var targetX:Number = k.point.x * (cellWidth + cellGap) + cellWidth / 2;
                     var targetY:Number = k.point.y * (cellHeight + cellGap) + cellHeight;
 
-                    layer.graphics.lineTo(targetX, targetY);
+                    tree.graphics.lineTo(targetX, targetY);
                 }
-
-                if (layer.width < spr.x + spr.width)
-                    layer.width = spr.x + spr.width;
-                if (layer.height < spr.y + spr.height)
-                    layer.height = spr.y + spr.height;
             }
         }
 
@@ -150,8 +135,7 @@
         }
         ]]></fx:Script>
 
-    <s:VGroup id="mainVGroup"
-              width="100%"
+    <s:VGroup width="100%"
               height="100%"
               horizontalAlign="center">
         <s:VGroup width="100%"
@@ -165,6 +149,9 @@
                           click="onButtonCopyJSON(event)"/>
             </s:HGroup>
             <s:Label id="labelSkillCount"/>
+            <s:Group id="tree"
+                     width="100%"
+                     height="100%"/>
         </s:VGroup>
 
     </s:VGroup>
