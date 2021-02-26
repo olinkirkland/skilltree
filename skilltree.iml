@@ -2,12 +2,12 @@
 <module type="Flex" version="4">
   <component name="FlexBuildConfigurationManager" active="skilltree">
     <configurations>
-      <configuration name="skilltree" target-platform="Desktop" main-class="Main" output-file="Main.swf" output-folder="$MODULE_DIR$/out/production/skilltree">
+      <configuration name="skilltree" target-platform="Desktop" main-class="Main" output-file="SkillTreeGenerator.swf" output-folder="$MODULE_DIR$/out/production/skilltree">
         <dependencies target-player="30.0">
           <sdk name="ApacheAirMerged" />
         </dependencies>
         <compiler-options />
-        <packaging-air-desktop package-file-name="Main" />
+        <packaging-air-desktop use-generated-descriptor="false" custom-descriptor-path="$MODULE_DIR$/SkillTreeGenerator-app.xml" package-file-name="Main" />
         <packaging-android />
         <packaging-ios />
       </configuration>

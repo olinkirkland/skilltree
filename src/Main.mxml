@@ -10,6 +10,9 @@
         import mx.events.FlexEvent;
         import mx.utils.UIDUtil;
 
+        private static var XML_SPACING_X:Number = 100;
+        private static var XML_SPACING_Y:Number = 100;
+
         private var layer:UIComponent = new UIComponent();
         private var skills:Array = [];
 
@@ -17,11 +20,6 @@
         {
             mainVGroup.addElement(layer);
 
-            generateAndDraw();
-        }
-
-        private function generateAndDraw():void
-        {
             generate();
             draw();
         }
@@ -43,20 +41,19 @@
             // Connect skills
             for each (skill in skills)
                 skill.requiredSkills = getRequiredSkills(skill);
-
-            labelSkillCount.text = skills.length + " Skills";
         }
 
         private function getRequiredSkills(skill:Skill):Array
         {
             var arr:Array = [];
+            var k:Skill;
 
-            // Add skill in the same column above
+            // Add a skill that's above this one in the same column
             var p:Point = skill.point.clone();
-            while (arr.length == 0 && p.y >= 0)
+            while (arr.length == 0 && p.y > 0)
             {
                 p.y--;
-                var k:Skill = getSkillByPoint(p);
+                k = getSkillByPoint(p);
                 if (k) arr.push(k);
             }
 
@@ -64,7 +61,7 @@
             p = skill.point.clone();
             p.y--;
             p.x--;
-            var k:Skill = getSkillByPoint(p);
+            k = getSkillByPoint(p);
             if (k) arr.push(k);
             p.x += 2;
             k = getSkillByPoint(p);
@@ -99,6 +96,8 @@
 
         private function draw():void
         {
+            labelSkillCount.text = skills.length + " Skills";
+
             layer.graphics.clear();
             while (layer.numChildren > 0)
                 layer.removeChildAt(0);
@@ -118,16 +117,34 @@
 
                 layer.addChild(spr);
 
+                layer.cacheAsBitmap = true;
                 layer.graphics.lineStyle(1, 0xff0000);
                 for each (var id:String in skill.requiredSkills)
                 {
                     var k:Skill = getSkillById(id);
-                    layer.graphics.moveTo(spr.x + cellWidth / 2, spr.y);
+                    var tX:Number = spr.x + cellWidth / 2;
+                    var tY:Number = spr.y;
+                    layer.graphics.moveTo(tX, tY);
 
-                    var targetX:Number = k.point.x * (cellWidth + cellGap) + cellWidth / 2;
-                    var targetY:Number = k.point.y * (cellHeight + cellGap) + cellHeight;
+                    var arrowHead:Sprite = new Sprite();
+                    arrowHead.graphics.lineStyle(1, 0xff0000);
+                    arrowHead.graphics.moveTo(0, 0);
+                    arrowHead.graphics.lineTo(-3, -5);
+                    arrowHead.graphics.lineTo(3, -5);
+                    arrowHead.graphics.lineTo(0, 0);
+                    arrowHead.graphics.endFill();
+                    //layer.addChild(arrowHead);
+                    arrowHead.x = tX;
+                    arrowHead.y = tY;
 
-                    layer.graphics.lineTo(targetX, targetY);
+                    tX = k.point.x * (cellWidth + cellGap) + cellWidth / 2;
+                    tY = k.point.y * (cellHeight + cellGap) + cellHeight;
+
+                    var dX:Number = tX - (spr.x + cellWidth / 2);
+                    var dY:Number = tY - (spr.y);
+                    arrowHead.rotation = Math.atan2(dY, dX) * (180 / Math.PI) + 90;
+
+                    layer.graphics.lineTo(tX, tY);
                 }
 
                 if (layer.width < spr.x + spr.width)
@@ -139,7 +156,9 @@
 
         private function onButtonGenerateClick(event:MouseEvent):void
         {
-            generateAndDraw();
+            // Generate random
+            generate();
+            draw();
         }
 
         private function onButtonCopyJSON(event:MouseEvent):void
@@ -147,6 +166,127 @@
             var str:String = JSON.stringify(skills, null, " ");
             Clipboard.generalClipboard.clear();
             Clipboard.generalClipboard.setData(ClipboardFormats.TEXT_FORMAT, str, false);
+        }
+
+        private function onButtonLoadClick(event:MouseEvent):void
+        {
+            // Load from JSON
+            var file:File = new File();
+            file.addEventListener(Event.SELECT, fileSelected);
+            var jsonTypeFilter:FileFilter = new FileFilter("Text Files", "*.json");
+            var allTypeFilter:FileFilter = new FileFilter("All Files (*.*)", "*.*");
+            file.browse([jsonTypeFilter, allTypeFilter]);
+
+            function fileSelected(event:Event):void
+            {
+                //var u:Object = JSON.parse()
+                file.load();
+                file.addEventListener(Event.COMPLETE, function (event:Event):void
+                {
+                    var bytes:ByteArray = file.data;
+                    var str:String = bytes.readUTFBytes(bytes.bytesAvailable);
+
+                    var u:Object;
+                    u = JSON.parse(str);
+                    load(u as Array);
+                    draw();
+                });
+            }
+        }
+
+        private function load(u:Array):void
+        {
+            skills = [];
+
+            for each (var w:Object in u)
+            {
+                var skill:Skill = new Skill();
+                skill.id = w.id;
+                skill.name = w.name;
+                skill.point = new Point(w.point.x, w.point.y);
+
+                skill.requiredSkills = [];
+                for each (var k:String in w.requiredSkills)
+                    skill.requiredSkills.push(k);
+
+                skills.push(skill);
+            }
+        }
+
+        private function onButtonOpenXMLExportPanel(event:MouseEvent):void
+        {
+            panelExport.visible = panelExport.enabled = true;
+        }
+
+        private function onButtonExportXML(event:MouseEvent):void
+        {
+            copyXML();
+        }
+
+        private function onButtonCloseXMLExportPanel(event:MouseEvent):void
+        {
+            panelExport.visible = panelExport.enabled = false;
+        }
+
+        private function copyXML():void
+        {
+            var str:String = '';
+
+            str += '\n\n<!--skilltree start-->\n\n<group name="mSkillTreeMain" width="400" height="1200" halign="center">';
+
+            // Connectors
+            str += '\n\n<!--connectors-->';
+            for each (var k:Skill in skills)
+            {
+                for each (var q:String in k.requiredSkills)
+                {
+                    var r:Skill = getSkillById(q);
+                    str += "\n" + xmlConnector(r, k);
+                }
+            }
+
+            // Skills
+            str += '\n\n<!--skills-->';
+            for each (var skill:Skill in skills)
+                str += "\n" + xmlSkill(skill);
+
+            str += '\n</group>\n\n<!-- skilltree end -->';
+
+            Clipboard.generalClipboard.clear();
+            Clipboard.generalClipboard.setData(ClipboardFormats.TEXT_FORMAT, str, false);
+        }
+
+        private function xmlSkill(skill:Skill):String
+        {
+            return '<group name="mRbSkill_' + skill.id + '" template="tSkill" '
+                    + 'x="' + (skill.point.x * XML_SPACING_X)
+                    + '" y="' + (skill.point.y * XML_SPACING_Y)
+                    + '"/>';
+        }
+
+        private function xmlConnector(r:Skill, k:Skill):String
+        {
+            var rX:Number = r.point.x * XML_SPACING_X;
+            var rY:Number = r.point.y * XML_SPACING_Y;
+            var kX:Number = k.point.x * XML_SPACING_X;
+            var kY:Number = k.point.y * XML_SPACING_Y;
+
+            if (r.point.x == k.point.x)
+            {
+                // Down
+                var length:int = k.point.y - r.point.y;
+                return '<group name="mArrow_' + r.id + "_" + k.id + '" template="tArrowDown" x="' + rX + '" y="' + rY + '" height="' + (length * XML_SPACING_Y) + '"/>';
+            } else if (r.point.x > k.point.x)
+            {
+                // Left
+                return '<group name="mArrow_' + r.id + "_" + k.id + '" template="tArrowDownLeft" x="' + rX + '" y="' + rY + '"/>';
+            } else if (r.point.x < k.point.x)
+            {
+                // Right
+                return '<group name="mArrow_' + r.id + "_" + k.id + '" template="tArrowDownRight" x="' + rX + '" y="' + rY + '"/>';
+            }
+
+            return '<!--error-->';
         }
         ]]></fx:Script>
 
@@ -159,13 +299,48 @@
                   padding="10">
             <s:HGroup width="100%"
                       horizontalAlign="center">
-                <s:Button label="Generate Skill Tree"
+                <s:Button label="Load JSON"
+                          click="onButtonLoadClick(event)"/>
+                <s:Button label="Generate"
                           click="onButtonGenerateClick(event)"/>
+            </s:HGroup>
+            <s:HGroup width="100%"
+                      horizontalAlign="center">
                 <s:Button label="Copy JSON"
                           click="onButtonCopyJSON(event)"/>
+                <s:Button label="Export XML"
+                          click="onButtonOpenXMLExportPanel(event)"/>
             </s:HGroup>
             <s:Label id="labelSkillCount"/>
         </s:VGroup>
+
+    </s:VGroup>
+
+    <s:VGroup width="100%"
+              height="100%"
+              padding="7">
+
+        <s:Panel width="100%"
+                 height="100%"
+                 id="panelExport"
+                 visible="false"
+                 title="Export XML">
+
+            <s:VGroup width="100%"
+                      height="100%">
+
+            </s:VGroup>
+
+            <s:HGroup width="100%"
+                      horizontalAlign="center"
+                      padding="10">
+                <s:Button label="Export (Copy to Clipboard)"
+                          click="onButtonExportXML(event)"/>
+                <s:Button label="Close"
+                          click="onButtonCloseXMLExportPanel(event)"/>
+            </s:HGroup>
+
+        </s:Panel>
 
     </s:VGroup>
 
