@@ -3,12 +3,17 @@
                        xmlns:s="library://ns.adobe.com/flex/spark"
                        creationComplete="onCreationComplete(event)"
                        showStatusBar="false"
-                       width="340"
-                       height="720">
+                       width="380"
+                       height="760">
+
+    <fx:Style source="/assets/global.css"/>
+
     <fx:Script><![CDATA[
         import mx.core.UIComponent;
         import mx.events.FlexEvent;
         import mx.utils.UIDUtil;
+
+        import spark.events.ElementExistenceEvent;
 
         private static var XML_SPACING_X:Number = 100;
         private static var XML_SPACING_Y:Number = 100;
@@ -99,12 +104,31 @@
             labelSkillCount.text = skills.length + " Skills";
 
             layer.graphics.clear();
-            while (layer.numChildren > 0)
-                layer.removeChildAt(0);
 
             var cellWidth:Number = 60;
             var cellHeight:Number = 30;
             var cellGap:Number = 20;
+
+            var k:Skill;
+
+            var w:int = 0;
+            for each (k in skills)
+                if (k.point.x > w)
+                    w = k.point.x;
+
+            var h:int = 0;
+            for each (k in skills)
+                if (k.point.y > h)
+                    h = k.point.y;
+
+            w++;
+            h++;
+
+            layer.graphics.lineStyle(1, 0x000000, .4);
+            layer.graphics.drawRect(-cellGap, -cellGap, w * (cellWidth + cellGap) + cellGap, h * (cellHeight + cellGap) + cellGap);
+
+            while (layer.numChildren > 0)
+                layer.removeChildAt(0);
 
             for each (var skill:Skill in skills)
             {
@@ -215,17 +239,27 @@
 
         private function onButtonOpenXMLExportPanel(event:MouseEvent):void
         {
-            panelExport.visible = panelExport.enabled = true;
+            var p:PopupExportXML = new PopupExportXML();
+            p.callbackExport = copyXML;
+            openPopup(p);
         }
 
-        private function onButtonExportXML(event:MouseEvent):void
+        private function openPopup(panel:Popup):void
         {
-            copyXML();
+            // Close existing popups
+            while (groupPopups.numElements > 0)
+                Popup(groupPopups.getElementAt(0)).close();
+
+            groupPopups.addElement(panel);
         }
 
-        private function onButtonCloseXMLExportPanel(event:MouseEvent):void
+        private function closePopup():void
         {
-            panelExport.visible = panelExport.enabled = false;
+            // Close all existing popups
+            // Expect only one popup at a time since popups are designed to be modal only
+            popupModalRectangle.visible = false;
+            while (groupPopups.numElements > 0)
+                Popup(groupPopups.getElementAt(0)).close();
         }
 
         private function copyXML():void
@@ -288,6 +322,14 @@
 
             return '<!--error-->';
         }
+
+        private function onPopupAddedOrRemoved(event:ElementExistenceEvent):void
+        {
+            callLater(function ():void
+            {
+                popupModalRectangle.includeInLayout = popupModalRectangle.visible = groupPopups.numElements > 0;
+            });
+        }
         ]]></fx:Script>
 
     <s:VGroup id="mainVGroup"
@@ -312,36 +354,34 @@
                           click="onButtonOpenXMLExportPanel(event)"/>
             </s:HGroup>
             <s:Label id="labelSkillCount"/>
+            <s:Spacer height="10"/>
         </s:VGroup>
 
     </s:VGroup>
 
-    <s:VGroup width="100%"
+    <!--Modal mode rectangle for popups-->
+    <s:VGroup id="popupModalRectangle"
+              width="100%"
               height="100%"
-              padding="7">
-
-        <s:Panel width="100%"
-                 height="100%"
-                 id="panelExport"
-                 visible="false"
-                 title="Export XML">
-
-            <s:VGroup width="100%"
-                      height="100%">
-
-            </s:VGroup>
-
-            <s:HGroup width="100%"
-                      horizontalAlign="center"
-                      padding="10">
-                <s:Button label="Export (Copy to Clipboard)"
-                          click="onButtonExportXML(event)"/>
-                <s:Button label="Close"
-                          click="onButtonCloseXMLExportPanel(event)"/>
-            </s:HGroup>
-
-        </s:Panel>
-
+              visible="false"
+              includeInLayout="false">
+        <s:Rect width="100%"
+                height="100%">
+            <s:fill>
+                <s:SolidColor color="{0x000000}"
+                              alpha=".4"/>
+            </s:fill>
+        </s:Rect>
     </s:VGroup>
+
+    <!--Popup layer-->
+    <s:VGroup id="groupPopups"
+              elementAdd="onPopupAddedOrRemoved(event)"
+              elementRemove="onPopupAddedOrRemoved(event)"
+              width="100%"
+              height="100%"
+              padding="50"
+              horizontalAlign="center"
+              verticalAlign="middle"/>
 
 </s:WindowedApplication>
